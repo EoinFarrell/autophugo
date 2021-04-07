@@ -8,7 +8,7 @@
     {{- $thumb_quality := default 50 ($.Param "thumb_quality") }}
     {{- $full_quality := default 90 ($.Param "full_quality") }}
 
-    {{- $thumb_size := printf "%dx q%d" $thumb_width $thumb_quality }}
+    {{- $thumb_size := printf "%dx405 q%d" $thumb_width $thumb_quality }}
     {{- $full_size := printf "%dx q%d" $full_width $full_quality }}
 
     {{- /* Build the list of sections and thumbnails */}}
@@ -39,8 +39,8 @@
         {{- if not $image }}
             {{- errorf (printf "When processing '%s', no thumbnail image found for: %s" $.Page.File.Path $title) }}
         {{- else }}
-            {{- $thumb := $image.Resize $thumb_size }}
-            {{- $new_sect := dict "type" "sect" "title" $title "link" $link "thumb" $thumb }}
+            {{- $thumb := $image.Fill $thumb_size }}
+            {{- $new_sect := dict "type" "sect" "title" $title "link" $link "thumb" $thumb "height" $thumb.Height "position" 0}}
 
             {{- $sections := $.Scratch.Get "sections" }}
             {{- $sections := $sections | append $new_sect }}
@@ -78,16 +78,59 @@
         {{- $alt := $img_dat.Get "alt" }}
         {{- $phototitle := $img_dat.Get "phototitle" }}
         {{- $description := $img_dat.Get "description" }}
-        {{- $thumb := $elem_val.Resize $thumb_size }}
+        {{- $thumb := $elem_val.Fill $thumb_size }}
         {{- $full := $elem_val.Resize $full_size }}
 
-        {{- $new_img := dict "type" "image" "index" $elem_index "image" $elem_val "thumb" $thumb "full" $full "alt" $alt "phototitle" $phototitle "description" $description }}
+        {{- $imageName := path.Base $elem_val.Name }}
+
+        {{ $article := printf "<article class='thumb'><a class='gallery-item' phototitle='%s'description='%s'orig_name='%s'gallery_index='%s'href='%s'><img src='%s'></a><h2>%s</h2></article>" $phototitle $description $imageName $elem_index $full.RelPermalink $thumb.RelPermalink $phototitle }}
+
+        {{- $new_img := dict "type" "image" "index" $elem_index "image" $elem_val "thumb" $thumb "full" $full "alt" $alt "phototitle" $phototitle "description" $description "article" $article "height" $thumb.Height "position" $elem_index}}
 
         {{- $images := $.Scratch.Get "images" }}
         {{- $images := $images | append $new_img }}
+
         {{- $.Scratch.Set "images" $images }}
     {{- end }}
     {{- $images := $.Scratch.Get "images" }}
+
+    {{- $.Scratch.Set "komoots" (slice) }}
+    {{- with $.Params.komoot }}
+        {{- range . }}
+            {{ $article := printf "<article class='thumb komoot'><iframe src='https://www.komoot.com/collection/%s/embed' width='100%' height='405px' frameborder='0' scrolling='no'></iframe><h2 style='display:none'>hello world</h2><p>hello world</p></article>" (string .link) }}
+            
+            {{- $new_img := dict }}
+            {{- if isset . "position" }}
+                {{- $new_img = dict "article" $article "height" 405 "position" .position }}
+            {{- else }}
+                {{- $new_img = dict "article" $article "height" 405 "position" 1 }}
+            {{ end }}
+
+            {{- $komoots := $.Scratch.Get "komoots" }}
+            {{- $komoots := $komoots | append $new_img }}
+            {{- $.Scratch.Set "komoots" $komoots }}
+        {{- end }}
+    {{- end }}
+    {{- $komoots := $.Scratch.Get "komoots" }}
+
+    {{- $.Scratch.Set "stravas" (slice) }}
+    {{- with $.Params.strava }}
+        {{- range . }}
+            {{ $article := printf "<article class='thumb strava'><iframe src='https://www.strava.com/activities/%s' height='405px' width='100%' frameborder='0' allowtransparency='true' scrolling='no'></iframe><h2 style='display:none'>asdf</h2><p>asdf</p></article>" .link }}
+
+            {{- $new_img := dict }}
+            {{- if isset . "position" }}
+                {{- $new_img = dict "article" $article "height" 405 "position" .position }}
+            {{- else }}
+                {{- $new_img = dict "article" $article "height" 405 "position" 1 }}
+            {{ end }}
+
+            {{- $stravas := $.Scratch.Get "stravas" }}
+            {{- $stravas := $stravas | append $new_img }}
+            {{- $.Scratch.Set "stravas" $stravas }}
+        {{- end }}
+    {{- end }}
+    {{- $stravas := $.Scratch.Get "stravas" }}
 
     {{- /* Initialize the column storage */}}
     {{- range $column_ind := seq $column_count }}
@@ -97,9 +140,11 @@
         {{- $.Scratch.Set $st_height_name 0 }}
     {{- end }}
 
+    {{/*  {{- $elements := ($stravas | append ($sections | append $images))}}  */}}
+    {{- $elements := ($komoots | append ($stravas | append ($sections | append $images)))}}
 
     {{- /* Add the sections into the columns followed by images */}}
-    {{- range $elem_index, $elem_val := ($sections | append $images)}}
+    {{- range $elem_index, $elem_val := sort $elements "position" "asc" }}
         {{- /* Find the least-filled column */}}
         {{- $.Scratch.Set "min_height" -1 }}
         {{- $.Scratch.Set "min_col" -1 }}
@@ -124,8 +169,8 @@
         {{- $column := $.Scratch.Get $st_name }}
         {{- $column := $column | append $elem_val }}
         {{- $.Scratch.Set $st_name $column }}
-
-        {{- $.Scratch.Set $st_height_name (add ($.Scratch.Get $st_height_name) $elem_val.thumb.Height) }}
+        
+        {{- $.Scratch.Set $st_height_name (add ($.Scratch.Get $st_height_name) $elem_val.height) }}
     {{- end }}
 
     {{- /* Output the images in columns */}}
@@ -135,20 +180,24 @@
         <div class="flexcol">
         {{- range $column }}
 
+            {{/*<article class="thumb">
+                <div>
+                    <p>This is a test to see how this looks this is a long line that keeps going.
+                        oh  wait its a paragraph
+                    </p>
+                </div>
+                <p>test<p>
+                <h2>header</h2>
+                <p>inner text</p>
+            </article>*/}}
+                
+        
             <article class="thumb">
                 {{- if (eq .type "sect") }}
                     <a href="{{ .link }}" class="link" tabindex="0"><img src="{{ .thumb.RelPermalink }}" alt="{{ .title }}" /></a>
                     <h2>{{ .title }}</h2>
                 {{- else }}
-                    <a class="gallery-item" phototitle="{{ .phototitle }}"
-                            description="{{ .description }}"
-                            orig_name="{{ path.Base .image.Name }}"
-                            gallery_index="{{ .index }}"
-                            href="{{ .full.RelPermalink }}">
-                        <img src="{{ .thumb.RelPermalink }}"
-                            {{ with .alt }} alt="{{ . }}"{{ end }}>
-                    </a>
-                    <h2>{{ .phototitle }}</h2>
+                    {{ .article | safeHTML}}
                 {{- end }}
             </article>
         {{- end }}
