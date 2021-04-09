@@ -85,7 +85,7 @@
 
         {{ $article := printf "<article class='thumb'><a class='gallery-item' phototitle='%s'description='%s'orig_name='%s'gallery_index='%s'href='%s'><img src='%s'></a><h2>%s</h2></article>" $phototitle $description $imageName $elem_index $full.RelPermalink $thumb.RelPermalink $phototitle }}
 
-        {{- $new_img := dict "type" "image" "index" $elem_index "image" $elem_val "thumb" $thumb "full" $full "alt" $alt "phototitle" $phototitle "description" $description "article" $article "height" $thumb.Height "position" $elem_index "link" $img_path }}
+        {{- $new_img := dict "type" "image" "index" $elem_index "image" $elem_val "thumb" $thumb "full" $full "alt" $alt "phototitle" $phototitle "description" $description "article" $article "height" $thumb.Height "position" 0 "link" $img_path }}
 
         {{- $images := $.Scratch.Get "images" }}
         {{- $images := $images | append $new_img }}
@@ -152,13 +152,13 @@
             {{ $v1 :=  where $stravas "link" $resource.link }}
             {{ $elements = $elements | append $v1 }}
         {{- else if eq $resource.type "image" }}
-            {{ $v1 :=  where $images "link" $resource.link }}
+            {{ $v1 :=  where $images "link" $resource.src }}
             {{ $elements = $elements | append $v1 }}
         {{-  end }}
     {{- end }}
 
     {{- /* Add the sections into the columns followed by images */}}
-    {{- range $elem_index, $elem_val := sort $elements "position" "asc" }}
+    {{- range $elem_index, $elem_val := $elements }}
         {{- /* Find the least-filled column */}}
         {{- $.Scratch.Set "min_height" -1 }}
         {{- $.Scratch.Set "min_col" -1 }}
