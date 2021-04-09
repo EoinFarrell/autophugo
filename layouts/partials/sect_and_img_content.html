@@ -85,7 +85,7 @@
 
         {{ $article := printf "<article class='thumb'><a class='gallery-item' phototitle='%s'description='%s'orig_name='%s'gallery_index='%s'href='%s'><img src='%s'></a><h2>%s</h2></article>" $phototitle $description $imageName $elem_index $full.RelPermalink $thumb.RelPermalink $phototitle }}
 
-        {{- $new_img := dict "type" "image" "index" $elem_index "image" $elem_val "thumb" $thumb "full" $full "alt" $alt "phototitle" $phototitle "description" $description "article" $article "height" $thumb.Height "position" $elem_index}}
+        {{- $new_img := dict "type" "image" "index" $elem_index "image" $elem_val "thumb" $thumb "full" $full "alt" $alt "phototitle" $phototitle "description" $description "article" $article "height" $thumb.Height "position" $elem_index "link" $img_path }}
 
         {{- $images := $.Scratch.Get "images" }}
         {{- $images := $images | append $new_img }}
@@ -95,15 +95,15 @@
     {{- $images := $.Scratch.Get "images" }}
 
     {{- $.Scratch.Set "komoots" (slice) }}
-    {{- with $.Params.komoot }}
-        {{- range . }}
+    {{- with $.Params.resources }}
+        {{- range where . "type" "komoot" }}
             {{ $article := printf "<article class='thumb komoot'><iframe src='https://www.komoot.com/collection/%s/embed' width='100%' height='405px' frameborder='0' scrolling='no'></iframe><h2 style='display:none'>hello world</h2><p>hello world</p></article>" (string .link) }}
             
             {{- $new_img := dict }}
             {{- if isset . "position" }}
-                {{- $new_img = dict "article" $article "height" 405 "position" .position }}
+                {{- $new_img = dict "article" $article "height" 405 "position" .position "type" .type "link" .link }}
             {{- else }}
-                {{- $new_img = dict "article" $article "height" 405 "position" 1 }}
+                {{- $new_img = dict "article" $article "height" 405 "position" 1 "type" .type "link" .link }}
             {{ end }}
 
             {{- $komoots := $.Scratch.Get "komoots" }}
@@ -114,15 +114,15 @@
     {{- $komoots := $.Scratch.Get "komoots" }}
 
     {{- $.Scratch.Set "stravas" (slice) }}
-    {{- with $.Params.strava }}
-        {{- range . }}
+    {{- with $.Params.resources }}
+        {{- range where . "type" "strava" }}
             {{ $article := printf "<article class='thumb strava'><iframe src='https://www.strava.com/activities/%s' height='405px' width='100%' frameborder='0' allowtransparency='true' scrolling='no'></iframe><h2 style='display:none'>asdf</h2><p>asdf</p></article>" .link }}
 
             {{- $new_img := dict }}
             {{- if isset . "position" }}
-                {{- $new_img = dict "article" $article "height" 405 "position" .position }}
+                {{- $new_img = dict "article" $article "height" 405 "position" .position "type" .type "link" .link }}
             {{- else }}
-                {{- $new_img = dict "article" $article "height" 405 "position" 1 }}
+                {{- $new_img = dict "article" $article "height" 405 "position" 1 "type" .type "link" .link }}
             {{ end }}
 
             {{- $stravas := $.Scratch.Get "stravas" }}
@@ -140,8 +140,22 @@
         {{- $.Scratch.Set $st_height_name 0 }}
     {{- end }}
 
-    {{/*  {{- $elements := ($stravas | append ($sections | append $images))}}  */}}
-    {{- $elements := ($komoots | append ($stravas | append ($sections | append $images)))}}
+    
+    {{- /* Add all the elements together in the correct order */}}
+    {{- $elements := $sections }}
+    
+    {{- range $resource := $.Params.resources }}
+        {{- if eq $resource.type "komoot" }}
+            {{ $v1 :=  where $komoots "link" $resource.link }}
+            {{ $elements = $elements | append $v1 }}
+        {{- else if eq $resource.type "strava" }}
+            {{ $v1 :=  where $stravas "link" $resource.link }}
+            {{ $elements = $elements | append $v1 }}
+        {{- else if eq $resource.type "image" }}
+            {{ $v1 :=  where $images "link" $resource.link }}
+            {{ $elements = $elements | append $v1 }}
+        {{-  end }}
+    {{- end }}
 
     {{- /* Add the sections into the columns followed by images */}}
     {{- range $elem_index, $elem_val := sort $elements "position" "asc" }}
