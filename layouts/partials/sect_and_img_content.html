@@ -83,9 +83,9 @@
 
         {{- $imageName := path.Base $elem_val.Name }}
 
-        {{ $article := printf "<article class='thumb'><a class='gallery-item' phototitle='%s'description='%s'orig_name='%s'gallery_index='%s'href='%s'><img src='%s' height='350px' object-fit='cover'></a><h2>%s</h2></article>" $phototitle $description $imageName $elem_index $full.RelPermalink $thumb.RelPermalink $phototitle }}
+        {{ $article := printf "<article class='thumb'><a class='gallery-item' phototitle='%s'description='%s'orig_name='%s'gallery_index='REPLACE_ME'href='%s'><img src='%s' height='350px' object-fit='cover'></a><h2>%s</h2></article>" $phototitle $description $imageName $full.RelPermalink $thumb.RelPermalink $phototitle }}
 
-        {{- $new_img := dict "type" "image" "index" $elem_index "image" $elem_val "thumb" $thumb "full" $full "alt" $alt "phototitle" $phototitle "description" $description "article" $article "height" $thumb.Height "position" 0 "link" $img_path }}
+        {{- $new_img := dict "type" "image" "index" $elem_index "image" $elem_val "thumb" $thumb "full" $full "alt" $alt "phototitle" $phototitle "description" $description "article_to_replace" $article "height" $thumb.Height "position" 0 "link" $img_path }}
 
         {{- $images := $.Scratch.Get "images" }}
         {{- $images := $images | append $new_img }}
@@ -144,7 +144,7 @@
     {{- /* Add all the elements together in the correct order */}}
     {{- $elements := $sections }}
     
-    {{- range $resource := $.Params.resources }}
+    {{- range $index, $resource := $.Params.resources }}
         {{- if eq $resource.type "komoot" }}
             {{ $v1 :=  where $komoots "link" $resource.link }}
             {{ $elements = $elements | append $v1 }}
@@ -152,8 +152,14 @@
             {{ $v1 :=  where $stravas "link" $resource.link }}
             {{ $elements = $elements | append $v1 }}
         {{- else if eq $resource.type "image" }}
-            {{ $v1 :=  where $images "link" $resource.src }}
-            {{ $elements = $elements | append $v1 }}
+            {{ $v1 := where $images "link" $resource.src }}
+
+            {{- /* We want to update our article object, so we can set the gallery index correctly */}}
+            {{- /* Where returns a map, so we need to loop through it */}}
+            {{- range $image_dict := $v1 }}
+                {{ $updated_article := dict "article" (replace $image_dict.article_to_replace "REPLACE_ME" $index) }}                
+                {{ $elements = $elements | append (merge $image_dict $updated_article) }}
+            {{- end}}
         {{-  end }}
     {{- end }}
 
